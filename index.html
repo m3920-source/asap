@@ -7,59 +7,28 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" xintegrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; }
-        .stock-card { transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
-        .stock-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
         .positive-gain { color: #10B981; }
         .negative-gain { color: #EF4444; }
         .neutral-gain { color: #6B7280; }
-        .pill { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; }
-        .pill-green { background-color: #D1FAE5; color: #065F46; }
-        .pill-red { background-color: #FEE2E2; color: #991B1B; }
-        .pill-blue { background-color: #DBEAFE; color: #1E40AF; }
-        .pill-yellow { background-color: #FEF3C7; color: #92400E; }
-        .pill-gray { background-color: #e5e7eb; color: #374151; }
         .tab-btn.active { border-color: #3B82F6; color: #2563EB; font-semibold; }
         .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #2d3748; color: white; padding: 1rem 2rem; border-radius: 0.5rem; z-index: 100; opacity: 0; transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out; transform: translate(-50%, 10px); }
         .toast.show { opacity: 1; transform: translate(-50%, 0); }
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); }
-        .modal-content { background-color: white; padding: 2rem; border-radius: 1rem; max-width: 500px; width: 90%; }
         .loader { border: 4px solid #f3f3f3; border-radius: 50%; border-top: 4px solid #3498db; width: 40px; height: 40px; animation: spin 2s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .time-filter-btn.active-filter { background-color: #3B82F6; color: white; }
         #manual-analysis-result h4 { font-size: 1.125rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; }
         #manual-analysis-result p { margin-bottom: 1rem; }
-        
-        /* Password Shake Animation */
-        @keyframes shake {
-            10%, 90% { transform: translate3d(-1px, 0, 0); }
-            20%, 80% { transform: translate3d(2px, 0, 0); }
-            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-            40%, 60% { transform: translate3d(4px, 0, 0); }
-        }
-        .animate-shake {
-            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-        }
+        .top-pick-highlight { background-color: #D1FAE5 !important; }
+        .top-pick-highlight td:first-child { font-weight: bold; }
     </style>
 </head>
 <body class="text-gray-800">
 
-    <!-- Password Overlay -->
-    <div id="password-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-95 flex items-center justify-center z-50 transition-opacity duration-300">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl text-center w-full max-w-sm transform transition-all">
-            <div class="mx-auto bg-blue-600 h-16 w-16 flex items-center justify-center rounded-full mb-6">
-                <i class="fas fa-lock text-white text-3xl"></i>
-            </div>
-            <h2 class="text-2xl font-bold mb-2 text-gray-800">Akses Terproteksi</h2>
-            <p class="text-gray-500 mb-6">Silakan masukkan kata sandi untuk melanjutkan.</p>
-            <input type="password" id="password-input" class="w-full px-4 py-3 border border-gray-300 rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center" placeholder="••••••••">
-            <button id="password-submit" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-300">Masuk</button>
-            <p id="password-error" class="text-red-500 text-sm mt-4 hidden">Kata sandi salah. Silakan coba lagi.</p>
-        </div>
-    </div>
-
-    <div id="app" class="container mx-auto p-4 md:p-8 hidden">
+    <div id="app" class="container mx-auto p-4 md:p-8">
 
         <!-- Header -->
         <header class="mb-8">
@@ -81,16 +50,20 @@
         <!-- Main Content -->
         <main>
             <!-- Tab Navigation -->
-            <div class="mb-6"><div class="border-b border-gray-200"><nav class="-mb-px flex space-x-8" aria-label="Tabs"><button id="tab-btn-dashboard" class="tab-btn active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Dashboard</button><button id="tab-btn-settings" class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">Pengaturan</button><button id="tab-btn-manual" class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">Analisis Manual</button></nav></div></div>
+            <div class="mb-6"><div class="border-b border-gray-200"><nav class="-mb-px flex space-x-8" aria-label="Tabs"><button id="tab-btn-dashboard" class="tab-btn active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Dashboard</button><button id="tab-btn-manual" class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">Analisis Manual</button><button id="tab-btn-tracking" class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">Lacak Manual</button></nav></div></div>
             
             <!-- Dashboard Tab -->
             <div id="tab-content-dashboard" class="tab-content">
-                <section id="recommendations" class="mb-8"><div class="flex items-center justify-between mb-4"><div><h2 class="text-xl font-bold text-gray-700">Rekomendasi Saham Hasil Analisis AI</h2><p class="text-sm text-gray-500">Berdasarkan indikator aktif di tab Pengaturan.</p></div></div><div id="recommendation-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div></section>
-                <section id="performance"><div class="flex flex-col md:flex-row justify-between items-center mb-4"><h2 class="text-xl font-bold text-gray-700 mb-2 md:mb-0">Lacak Performa Rekomendasi</h2><div id="time-filter" class="flex items-center bg-white rounded-lg shadow-sm p-1 space-x-1"><button data-period="daily" class="time-filter-btn active-filter font-semibold py-2 px-4 rounded-md text-sm">Harian</button><button data-period="weekly" class="time-filter-btn py-2 px-4 rounded-md text-sm">Pekanan</button><button data-period="monthly" class="time-filter-btn py-2 px-4 rounded-md text-sm">Bulanan</button></div></div><div class="bg-white rounded-2xl shadow-lg overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm text-left text-gray-500"><thead class="text-xs text-gray-700 uppercase bg-gray-100"><tr><th scope="col" class="px-6 py-3">Saham</th><th scope="col" class="px-6 py-3">Tgl Rekomendasi</th><th scope="col" class="px-6 py-3 text-right">Harga Awal</th><th scope="col" class="px-6 py-3 text-right">Harga Terkini</th><th scope="col" class="px-6 py-3 text-right">Gain Harian (%)</th></tr></thead><tbody id="performance-table-body"></tbody></table></div></div></section>
+                <section id="ai-recommendation-generator" class="mb-8 bg-white p-6 rounded-2xl shadow-lg text-center">
+                    <h2 class="text-xl font-bold text-gray-800">Rekomendasi Saham Hari Ini</h2>
+                    <p id="ai-recommendation-status" class="text-gray-500 mt-2 mb-4">Menganalisis pasar untuk rekomendasi hari ini...</p>
+                    <button id="get-ai-recommendation-btn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition duration-300">
+                        <i class="fas fa-wand-magic-sparkles mr-2"></i> Dapatkan Rekomendasi AI Hari Ini
+                    </button>
+                </section>
+
+                <section id="performance"><div class="flex flex-col md:flex-row justify-between items-center mb-4"><h2 class="text-xl font-bold text-gray-700 mb-2 md:mb-0">Lacak Performa Rekomendasi AI</h2><div id="time-filter" class="flex items-center bg-white rounded-lg shadow-sm p-1 space-x-1"><button data-period="daily" class="time-filter-btn active-filter font-semibold py-2 px-4 rounded-md text-sm">Harian</button><button data-period="weekly" class="time-filter-btn py-2 px-4 rounded-md text-sm">Pekanan</button><button data-period="monthly" class="time-filter-btn py-2 px-4 rounded-md text-sm">Bulanan</button></div></div><div class="bg-white rounded-2xl shadow-lg overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm text-left text-gray-500"><thead class="text-xs text-gray-700 uppercase bg-gray-100"><tr><th scope="col" class="px-6 py-3">Saham</th><th scope="col" class="px-6 py-3">Tgl Rekomendasi</th><th scope="col" class="px-6 py-3 text-right">Harga Awal</th><th scope="col" class="px-6 py-3 text-right">Harga Terkini</th><th scope="col" class="px-6 py-3 text-right">Gain (%)</th></tr></thead><tbody id="performance-table-body"></tbody></table></div></div></section>
             </div>
-            
-            <!-- Settings Tab -->
-            <div id="tab-content-settings" class="tab-content hidden"><section id="indicator-settings"><div class="bg-white p-6 rounded-2xl shadow-lg"><h2 class="text-xl font-bold mb-2 text-gray-700">Pilih Indikator Aktif</h2><p class="text-sm text-gray-500 mb-6">Pilih sinyal untuk setiap indikator yang ingin Anda gunakan. Rekomendasi di Dashboard akan disesuaikan secara otomatis.</p><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"><div><label for="rsi-setting" class="block text-sm font-medium text-gray-700 mb-2">RSI</label><select id="rsi-setting" data-indicator-name="RSI" class="setting-input mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"><option>Tidak Digunakan</option><option>Di Bawah 30 (Oversold)</option><option>Golden Cross 30</option><option>Golden Cross 50</option><option>Di Atas 50</option><option>Di Atas 70 (Overbought)</option></select></div><div><label for="stochastic-setting" class="block text-sm font-medium text-gray-700 mb-2">Stochastic</label><select id="stochastic-setting" data-indicator-name="Stochastic" class="setting-input mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"><option>Tidak Digunakan</option><option>Golden Cross</option><option>Di Bawah 20 (Oversold)</option><option>Di Atas 80 (Overbought)</option></select></div><div><label for="mfi-setting" class="block text-sm font-medium text-gray-700 mb-2">MFI</label><select id="mfi-setting" data-indicator-name="MFI" class="setting-input mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"><option>Tidak Digunakan</option><option>Di Bawah 20 (Oversold)</option><option>Di Atas 80 (Overbought)</option><option>Tren Volume Naik</option></select></div><div><label for="macd-setting" class="block text-sm font-medium text-gray-700 mb-2">MACD</label><select id="macd-setting" data-indicator-name="MACD" class="setting-input mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"><option>Tidak Digunakan</option><option>Golden Cross</option><option>Dead Cross</option><option>Histogram Positif</option><option>Histogram Negatif</option></select></div><div><label for="volume-setting" class="block text-sm font-medium text-gray-700 mb-2">Volume</label><select id="volume-setting" data-indicator-name="Volume" class="setting-input mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"><option>Tidak Digunakan</option><option>Di Atas Rata-rata 20 Hari</option><option>Volume Spike (>200%)</option></select></div><div><label for="ma-setting" class="block text-sm font-medium text-gray-700 mb-2">Moving Average</label><select id="ma-setting" data-indicator-name="MA" class="setting-input mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"><option>Tidak Digunakan</option><option>Harga di Atas MA20</option><option>Golden Cross MA20 & MA50</option><option>Harga di Atas MA200</option></select></div><div><label for="valuation-setting" class="block text-sm font-medium text-gray-700 mb-2">Valuasi MA20 (Miliar Rp)</label><input type="number" id="valuation-setting" data-indicator-name="Valuasi" class="setting-input mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md" placeholder="Contoh: 3"></div></div><div class="md:col-span-2 lg:col-span-3 border-t pt-6 mt-6"><h3 class="text-lg font-medium text-gray-800 mb-4">Kriteria Umum</h3><div class="space-y-4"><div class="relative flex items-start"><div class="flex items-center h-5"><input id="syariah-only-setting" type="checkbox" class="setting-input h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"></div><div class="ml-3 text-sm"><label for="syariah-only-setting" class="font-medium text-gray-700">Hanya Saham Syariah</label><p class="text-gray-500">Filter hanya akan menampilkan saham yang terdaftar di Indeks Saham Syariah Indonesia (ISSI).</p></div></div><div class="relative flex items-start"><div class="flex items-center h-5"><input id="exclude-monitoring-setting" type="checkbox" class="setting-input h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"></div><div class="ml-3 text-sm"><label for="exclude-monitoring-setting" class="font-medium text-gray-700">Kecualikan Papan Pemantauan Khusus</label><p class="text-gray-500">Jangan tampilkan saham yang berada dalam pengawasan khusus oleh bursa.</p></div></div><div class="relative pt-4"><label class="font-medium text-gray-700">Filter Harga</label><p class="text-gray-500 text-sm">Cari saham dengan harga di atas atau di bawah nilai tertentu.</p><div class="mt-2 grid grid-cols-2 gap-4"><select id="price-filter-condition" class="setting-input block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"><option value="above">Harga Di Atas</option><option value="below">Harga Di Bawah</option></select><input type="number" id="price-filter-value" class="setting-input block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md" placeholder="Contoh: 5000"></div></div></div></div><div class="mt-8 border-t pt-6 text-right"><button id="save-settings-btn" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Simpan Pengaturan</button></div></div></section></div>
             
             <!-- Manual Analysis Tab -->
             <div id="tab-content-manual" class="tab-content hidden">
@@ -100,7 +73,7 @@
                         <p class="text-sm text-gray-500 mb-6">Masukkan beberapa kode saham yang ingin Anda bandingkan, pisahkan dengan koma.</p>
                         <div>
                             <label for="manual-stock-input" class="block text-sm font-medium text-gray-700 mb-2">Kode Saham</label>
-                            <textarea id="manual-stock-input" rows="3" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Contoh: BBCA, TLKM, ASII"></textarea>
+                            <textarea id="manual-stock-input" rows="3" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Contoh: TLKM, ASII, ADRO"></textarea>
                         </div>
                         <div class="mt-4 text-right">
                             <button id="manual-analyze-btn" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition duration-300">
@@ -116,306 +89,375 @@
                 </section>
             </div>
 
+            <!-- Manual Tracking Tab -->
+            <div id="tab-content-tracking" class="tab-content hidden">
+                <section id="manual-tracking-section">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+                        <h2 class="text-xl font-bold mb-2 text-gray-700">Tambahkan Saham ke Daftar Lacak</h2>
+                        <p class="text-sm text-gray-500 mb-6">Masukkan kode saham yang ingin Anda pantau performanya secara manual.</p>
+                        <div class="flex flex-col sm:flex-row items-end space-y-2 sm:space-y-0 sm:space-x-4">
+                            <div class="w-full"><label for="manual-track-input" class="block text-sm font-medium text-gray-700 mb-1">Kode Saham</label><input type="text" id="manual-track-input" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Contoh: MDKA"></div>
+                            <button id="add-manual-track-btn" class="w-full sm:w-auto bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition duration-300 flex-shrink-0">
+                                <i class="fas fa-plus mr-2"></i> Tambahkan
+                            </button>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left text-gray-500">
+                                <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3">Saham</th>
+                                        <th scope="col" class="px-6 py-3">Tgl Ditambahkan</th>
+                                        <th scope="col" class="px-6 py-3 text-right">Harga Awal</th>
+                                        <th scope="col" class="px-6 py-3 text-right">Harga Terkini</th>
+                                        <th scope="col" class="px-6 py-3 text-right">Gain (%)</th>
+                                        <th scope="col" class="px-6 py-3 text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="manual-performance-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
         </main>
     </div>
     
     <div id="toast-notification" class="toast"></div>
     
-    <!-- AI Analysis Modal -->
-    <div id="ai-modal" class="modal-overlay hidden"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 id="ai-modal-title" class="text-xl font-bold">Analisis AI</h3><button id="ai-modal-close" class="text-gray-500 hover:text-gray-800">&times;</button></div><div id="ai-modal-body"><div class="flex items-center justify-center py-8"><div class="loader"></div></div></div></div></div>
-
-    <script type="module">
-        // --- Firebase SDK Imports ---
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-
-        // --- Firebase Configuration ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyCpRUDQZulcoD7Zj5N1rz21ZInerrVnups",
-            authDomain: "asap-e5190.firebaseapp.com",
-            projectId: "asap-e5190",
-            storageBucket: "asap-e5190.appspot.com",
-            messagingSenderId: "522571471123",
-            appId: "1:522571471123:web:f5210cc24a26ea301ea2e6"
-        };
-
-        // --- Global Variables ---
-        let db, auth, userId;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const GEMINI_API_KEY = 'AIzaSyCHjRY2LohqMZ-mhb26mJXAyJSzO64elBg';
-        const mockStocks = [ { ticker: 'BBCA', name: 'Bank Central Asia Tbk.', price: 9250, isSyariah: false, inSpecialMonitoring: false }, { ticker: 'BBRI', name: 'Bank Rakyat Indonesia (Persero) Tbk.', price: 4350, isSyariah: false, inSpecialMonitoring: false }, { ticker: 'TLKM', name: 'Telkom Indonesia (Persero) Tbk.', price: 3050, isSyariah: true, inSpecialMonitoring: false }, { ticker: 'ASII', name: 'Astra International Tbk.', price: 5100, isSyariah: true, inSpecialMonitoring: false }, { ticker: 'GOTO', name: 'GoTo Gojek Tokopedia Tbk.', price: 54, isSyariah: false, inSpecialMonitoring: true }, { ticker: 'BREN', name: 'Barito Renewables Energy Tbk', price: 9000, isSyariah: true, inSpecialMonitoring: false }, { ticker: 'AMMN', name: 'Amman Mineral Internasional Tbk', price: 11000, isSyariah: true, inSpecialMonitoring: false }, { ticker: 'UNVR', name: 'Unilever Indonesia Tbk.', price: 3000, isSyariah: true, inSpecialMonitoring: false }, { ticker: 'ICBP', name: 'Indofood CBP Sukses Makmur Tbk.', price: 11000, isSyariah: true, inSpecialMonitoring: false}, { ticker: 'MDKA', name: 'Merdeka Copper Gold Tbk.', price: 2500, isSyariah: true, inSpecialMonitoring: true } ];
-        const indicatorDetails = { RSI: { class: 'pill-green' }, Stochastic: { class: 'pill-green' }, MFI: { class: 'pill-green' }, MACD: { class: 'pill-green' }, Volume: { class: 'pill-blue' }, MA: { class: 'pill-gray' }, Valuasi: { class: 'pill-yellow' } };
-        
-        // --- Core Application Logic ---
-
-        function getActiveSettings() {
-            const settings = {};
-            document.querySelectorAll('.setting-input').forEach(input => {
-                const id = input.id;
-                const indicatorName = input.dataset.indicatorName;
-                const value = input.value;
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            /*
+                --- PENTING: KONFIGURASI SUPABASE ---
                 
-                if (input.type === 'checkbox') {
-                    settings[id] = input.checked;
-                } else if (indicatorName) {
-                    if (input.tagName.toLowerCase() === 'select' && value !== 'Tidak Digunakan') {
-                        settings[indicatorName] = value;
-                    } else if (input.tagName.toLowerCase() === 'input' && value) {
-                        settings[indicatorName] = `Rata-rata valuasi MA20 sekitar ${value} Miliar Rupiah`;
-                    }
+                Error "Could not find the table" berarti tabel belum dibuat di Supabase.
+                Ikuti langkah berikut untuk memperbaikinya:
+                
+                1. Buka Proyek Supabase Anda.
+                2. Pergi ke 'Table Editor' (ikon tabel).
+                3. Klik 'New Table' dan buat DUA tabel persis seperti di bawah ini:
+
+                   TABEL 1:
+                   - Nama Tabel: ai_recommendations
+                   - Kolom:
+                     - id (biarkan default: int8, primary key)
+                     - created_at (biarkan default: timestamptz)
+                     - ticker (ubah tipe ke: text)
+                     - name (ubah tipe ke: text)
+                     - initial_price (ubah tipe ke: float8)
+                     - is_top_pick (ubah tipe ke: bool)
+
+                   TABEL 2:
+                   - Nama Tabel: manual_tracking
+                   - Kolom:
+                     - id (biarkan default: int8, primary key)
+                     - created_at (biarkan default: timestamptz)
+                     - ticker (ubah tipe ke: text)
+                     - initial_price (ubah tipe ke: float8)
+
+                Setelah kedua tabel dibuat, aplikasi akan berfungsi dengan benar.
+            */
+            const SUPABASE_URL = 'https://ddehbnleivaegjgrutsz.supabase.co'; 
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZWhibmxlaXZhZWdqZ3J1dHN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5ODY5MDgsImV4cCI6MjA3MzU2MjkwOH0.gN8AfaVudO_EBljUu_oD3VmB21fVHKZ4KrbIqy53nB8';
+            
+            // --- Global Variables ---
+            const stockData = [
+                { "ticker": "TLKM", "name": "Telkom Indonesia (Persero) Tbk.", "price": 3050, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "ASII", "name": "Astra International Tbk.", "price": 5100, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "BREN", "name": "Barito Renewables Energy Tbk", "price": 9000, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "AMMN", "name": "Amman Mineral Internasional Tbk", "price": 11000, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "UNVR", "name": "Unilever Indonesia Tbk.", "price": 3000, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "ICBP", "name": "Indofood CBP Sukses Makmur Tbk.", "price": 11000, "isSyariah": true, "inSpecialMonitoring": false}, { "ticker": "MDKA", "name": "Merdeka Copper Gold Tbk.", "price": 2500, "isSyariah": true, "inSpecialMonitoring": true }, { "ticker": "ADRO", "name": "Adaro Energy Indonesia Tbk.", "price": 2700, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "PTBA", "name": "Bukit Asam Tbk.", "price": 2500, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "WIFI", "name": "Solusi Sinergi Digital Tbk.", "price": 60, "isSyariah": true, "inSpecialMonitoring": true }, { "ticker": "INDF", "name": "Indofood Sukses Makmur Tbk.", "price": 6200, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "KLBF", "name": "Kalbe Farma Tbk.", "price": 1500, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "CPIN", "name": "Charoen Pokphand Indonesia Tbk", "price": 5200, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "EXCL", "name": "XL Axiata Tbk.", "price": 2300, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "JSMR", "name": "Jasa Marga (Persero) Tbk.", "price": 5000, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "AKRA", "name": "AKR Corporindo Tbk.", "price": 1600, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "UNTR", "name": "United Tractors Tbk.", "price": 23000, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "BRPT", "name": "Barito Pacific Tbk.", "price": 1000, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "INCO", "name": "Vale Indonesia Tbk.", "price": 4000, "isSyariah": true, "inSpecialMonitoring": false }, { "ticker": "PGAS", "name": "Perusahaan Gas Negara Tbk.", "price": 1200, "isSyariah": true, "inSpecialMonitoring": false }
+            ];
+            const GEMINI_API_KEY = 'AIzaSyCHjRY2LohqMZ-mhb26mJXAyJSzO64elBg';
+            const GOOGLE_SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbwmJUhK6guaXczFQ6EBNl0d9poqAhFqJyiLEcVtZeernKAvMRgHnc8UrqsoWevzuIHKPQ/exec';
+            let supabaseClient;
+            try {
+                if (SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL !== 'ISI_DENGAN_URL_PROYEK_SUPABASE_ANDA' && SUPABASE_ANON_KEY.startsWith('eyJ')) {
+                     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 } else {
-                    settings[id] = value;
+                    console.warn("Kunci Supabase belum diatur atau tidak valid. Fitur database tidak akan berfungsi.");
                 }
-            });
-            return settings;
-        }
-
-        function generateAIRecommendations() {
-            const activeSettings = getActiveSettings();
-            const activeIndicatorNames = Object.keys(indicatorDetails).filter(key => activeSettings.hasOwnProperty(key));
-
-            let filteredStocks = [...mockStocks];
-            if (activeSettings['syariah-only-setting']) {
-                filteredStocks = filteredStocks.filter(stock => stock.isSyariah);
-            }
-            if (activeSettings['exclude-monitoring-setting']) {
-                filteredStocks = filteredStocks.filter(stock => !stock.inSpecialMonitoring);
-            }
-            const priceCondition = activeSettings['price-filter-condition'];
-            const priceValue = parseFloat(activeSettings['price-filter-value']);
-            if (!isNaN(priceValue) && priceValue > 0) {
-                if (priceCondition === 'above') {
-                    filteredStocks = filteredStocks.filter(stock => stock.price > priceValue);
-                } else if (priceCondition === 'below') {
-                    filteredStocks = filteredStocks.filter(stock => stock.price < priceValue);
-                }
-            }
-            if (activeIndicatorNames.length === 0) { return []; } 
-
-            const recommendations = [];
-            const shuffledStocks = filteredStocks.sort(() => 0.5 - Math.random());
-            for (const stock of shuffledStocks) {
-                if (recommendations.length >= 4) break;
-                const matchChance = 0.3; 
-                const doesMatchAll = Math.random() < matchChance;
-                if (doesMatchAll) {
-                    recommendations.push({ ...stock, signals: activeIndicatorNames });
-                }
-            }
-            return recommendations;
-        }
-
-        function renderRecommendations() {
-            const recommendationList = document.getElementById('recommendation-list');
-            const recommendations = generateAIRecommendations();
-            recommendationList.innerHTML = '';
-            if (recommendations.length === 0) { recommendationList.innerHTML = `<div class="col-span-full text-center bg-white p-8 rounded-2xl shadow-lg"><h3 class="font-bold text-lg text-gray-700">Tidak Ada Rekomendasi</h3><p class="text-gray-500 mt-2">Tidak ada saham yang cocok dengan semua kriteria Anda saat ini. Coba kurangi jumlah indikator aktif.</p></div>`; return; }
-            
-            recommendations.forEach(stock => {
-                const card = document.createElement('div');
-                card.className = 'stock-card bg-white p-5 rounded-xl shadow-md flex flex-col justify-between';
-                card.innerHTML = `<div> <div class="flex justify-between items-start"> <div><h3 class="text-xl font-bold">${stock.ticker}</h3><p class="text-xs text-gray-500 truncate w-36">${stock.name}</p></div> <span class="pill pill-green">BUY</span> </div> <p class="text-2xl font-semibold mt-2 mb-3">Rp ${stock.price.toLocaleString('id-ID')}</p> </div> <div> <p class="text-xs font-semibold mb-2 text-gray-400">SINYAL PENDUKUNG</p> <div class="flex flex-wrap gap-2">${stock.signals.map(key => `<span class="pill ${indicatorDetails[key]?.class || 'pill-gray'}">${key}</span>`).join('')}</div> <div class="mt-4 border-t pt-4"> <button data-ticker="${stock.ticker}" data-name="${stock.name}" data-signals='${JSON.stringify(stock.signals)}' class="analyze-btn w-full bg-blue-100 text-blue-800 font-semibold py-2 px-4 rounded-lg hover:bg-blue-200 transition duration-300 text-sm"> ✨ Analisa AI </button> </div> </div>`;
-                recommendationList.appendChild(card);
-            });
-
-            document.querySelectorAll('.analyze-btn').forEach(button => { button.addEventListener('click', handleAnalyzeClick); });
-        }
-        
-        async function handleAnalyzeClick(event) {
-            const button = event.currentTarget;
-            const { ticker, name, signals } = button.dataset;
-            const parsedSignals = JSON.parse(signals);
-            
-            if (!GEMINI_API_KEY) {
-                showToast('Kunci API Gemini belum dimasukkan ke dalam kode.');
-                return;
-            }
-
-            const modal = document.getElementById('ai-modal');
-            const modalTitle = document.getElementById('ai-modal-title');
-            const modalBody = document.getElementById('ai-modal-body');
-
-            modalTitle.textContent = `Analisis AI untuk ${ticker}`;
-            modalBody.innerHTML = `<div class="flex items-center justify-center py-8"><div class="loader"></div></div>`;
-            modal.classList.remove('hidden');
-
-            try {
-                const activeSettings = getActiveSettings();
-                const signalsForPrompt = parsedSignals.map(signalName => activeSettings[signalName] || signalName);
-                
-                const prompt = `Anda adalah seorang analis saham yang cerdas. Berikan analisis singkat (2-3 kalimat) untuk saham ${name} (${ticker}). Saham ini adalah saham syariah dan tidak masuk papan pemantauan khusus. Saham ini direkomendasikan karena menunjukkan sinyal-sinyal berikut: ${signalsForPrompt.join(', ')}. Jelaskan secara ringkas mengapa kombinasi sinyal ini berpotensi menjadi indikasi yang baik untuk trading. Gunakan bahasa yang mudah dimengerti.`;
-                
-                await callGeminiAPI(prompt, modalBody);
-
             } catch (error) {
-                modalBody.innerHTML = `<p class="text-red-500">Terjadi kesalahan: ${error.message}</p>`;
-                console.error("Gemini API Error:", error);
+                console.error("Supabase initialization failed:", error);
+                showToast("Gagal menginisialisasi Supabase. Pastikan URL dan Kunci valid.");
             }
-        }
-
-        async function handleManualAnalysis() {
-            const input = document.getElementById('manual-stock-input').value;
-            const resultContainer = document.getElementById('manual-analysis-result');
-
-            if (!input.trim()) {
-                showToast("Silakan masukkan minimal satu kode saham.");
-                return;
-            }
-
-            if (!GEMINI_API_KEY) {
-                showToast('Kunci API Gemini belum dimasukkan ke dalam kode.');
-                return;
-            }
-
-            const tickers = input.split(',').map(t => t.trim().toUpperCase()).filter(t => t);
-            resultContainer.innerHTML = `<div class="flex items-center justify-center py-8"><div class="loader"></div> <p class="ml-4 text-gray-500">AI sedang menganalisis...</p></div>`;
-
-            try {
-                const prompt = `Anda adalah seorang analis teknikal dan fundamental ahli. Saya ingin Anda menganalisis dan membandingkan saham-saham berikut: ${tickers.join(', ')}. Untuk setiap saham, berikan analisis berdasarkan indikator-indikator ini: RSI, MFI, Volume, Valuasi Rata-rata 20 Hari (MA20), Stochastic Oscillator, MACD, dan Moving Average. Setelah menganalisis setiap saham, berikan dua bagian kesimpulan. Pertama, bagian 'Urutan Rekomendasi' yang berisi daftar urutan saham dari yang paling direkomendasikan (peringkat 1) hingga yang kurang direkomendasikan. Kedua, bagian 'Rekomendasi Utama' yang menjelaskan secara ringkas saham mana yang menjadi pilihan teratas dan mengapa. Format jawaban Anda dengan heading tebal untuk setiap saham dan juga untuk 'Urutan Rekomendasi' dan 'Rekomendasi Utama'.`;
-
-                await callGeminiAPI(prompt, resultContainer);
-
-            } catch (error) {
-                 resultContainer.innerHTML = `<p class="text-red-500 text-center">Terjadi kesalahan: ${error.message}</p>`;
-                 console.error("Gemini API Error:", error);
-            }
-        }
-
-        async function callGeminiAPI(prompt, targetElement) {
-             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`;
-             const payload = { contents: [{ parts: [{ text: prompt }] }] };
-
-             const response = await fetch(apiUrl, {
-                 method: 'POST',
-                 headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify(payload)
-             });
-
-             if (!response.ok) {
-                 const errorData = await response.json();
-                 throw new Error(errorData.error.message || 'Gagal berkomunikasi dengan API.');
-             }
-
-             const result = await response.json();
-             const analysisText = result.candidates[0].content.parts[0].text;
-             targetElement.innerHTML = analysisText
-                .replace(/\*\*(.*?)\*\*/g, '<h4>$1</h4>') // Convert markdown bold to h4
-                .replace(/\n/g, '<br>');
-        }
-        
-        function renderPerformance(period = 'daily') { 
-            const tableBody = document.getElementById('performance-table-body');
-            tableBody.innerHTML = '';
-            let daysAgo, entryCount;
-            switch (period) { case 'weekly': daysAgo = 7; entryCount = 10; break; case 'monthly': daysAgo = 30; entryCount = 20; break; default: daysAgo = 2; entryCount = 5; break; }
-            const performanceData = [];
-            for (let i = 0; i < entryCount; i++) { const stock = mockStocks[Math.floor(Math.random() * mockStocks.length)]; const recommendationDate = new Date(); recommendationDate.setDate(recommendationDate.getDate() - Math.floor(Math.random() * daysAgo)); const daysSinceRec = Math.max(1, (new Date() - recommendationDate) / (1000 * 60 * 60 * 24)); const initialPrice = stock.price * (1 - (Math.random() * 0.05)); const volatility = 0.04; const trend = (Math.random() - 0.4); const priceChangeFactor = 1 + (trend * volatility * Math.sqrt(daysSinceRec)); const currentPrice = initialPrice * priceChangeFactor; const gain = ((currentPrice - initialPrice) / initialPrice) * 100; performanceData.push({ ticker: stock.ticker, date: recommendationDate, initialPrice: initialPrice, currentPrice: currentPrice, gain: parseFloat(gain.toFixed(2)) }); }
-            performanceData.sort((a, b) => b.date - a.date);
-            if (performanceData.length === 0) { tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-gray-500">Tidak ada data untuk periode ini.</td></tr>`; return; }
-            performanceData.forEach(data => { const row = document.createElement('tr'); row.className = 'bg-white border-b hover:bg-gray-50'; const gainClass = data.gain > 0 ? 'positive-gain' : (data.gain < 0 ? 'negative-gain' : 'neutral-gain'); const gainIcon = data.gain > 0 ? 'fa-arrow-up' : 'fa-arrow-down'; row.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${data.ticker}</td><td class="px-6 py-4">${data.date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</td><td class="px-6 py-4 text-right">Rp ${Math.round(data.initialPrice).toLocaleString('id-ID')}</td><td class="px-6 py-4 text-right">Rp ${Math.round(data.currentPrice).toLocaleString('id-ID')}</td><td class="px-6 py-4 text-right"><span class="font-semibold ${gainClass}">${data.gain > 0 ? '+' : ''}${data.gain}% ${data.gain !== 0 ? `<i class="fas ${gainIcon} ml-1 text-xs"></i>` : ''}</span></td>`; tableBody.appendChild(row); });
-        }
-        
-        function handleTabClick(event) { 
-            const tabButtons = document.querySelectorAll('.tab-btn');
-            tabButtons.forEach(btn => {
-                btn.classList.remove('active');
-                btn.classList.add('border-transparent', 'text-gray-500');
-            });
-            event.target.classList.add('active');
-            event.target.classList.remove('border-transparent', 'text-gray-500');
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
-            document.getElementById(`tab-content-${event.target.id.split('-')[2]}`).classList.remove('hidden');
-        }
-        
-        async function saveSettings() {
-            if (!db || !userId) { showToast("Gagal menyimpan. Tidak terhubung ke server."); return; }
-            const settings = getActiveSettings();
-            try { const docRef = doc(db, "artifacts", appId, "users", userId, "settings", "main"); await setDoc(docRef, settings); showToast('Pengaturan disimpan ke Cloud!'); renderRecommendations(); } catch (error) { console.error("Error saving settings to Firestore: ", error); showToast("Gagal menyimpan pengaturan ke Cloud."); }
-        }
-        
-        async function loadSettings() {
-            if (!db || !userId) { console.warn("Firestore not ready, cannot load settings."); return; }
-            const docRef = doc(db, "artifacts", appId, "users", userId, "settings", "main");
-            try {
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    const settings = docSnap.data();
-                    console.log("Loaded settings from Firestore:", settings);
-                    for (const key in settings) {
-                        const inputElement = document.getElementById(key);
-                        if (inputElement) { if (inputElement.type === 'checkbox') { inputElement.checked = settings[key]; } else { inputElement.value = settings[key]; } }
+            
+            // --- Core Application Logic ---
+            
+            async function fetchStockPrice(ticker) {
+                const url = `${GOOGLE_SHEET_API_URL}?ticker=${ticker}`;
+                try {
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    if (data.price && data.ticker) {
+                        const stockInfo = stockData.find(s => s.ticker === data.ticker);
+                        return { ...data, name: stockInfo?.name || data.ticker };
                     }
-                } else { console.log("No settings document found for user. Using defaults."); }
-            } catch (error) { console.error("Error loading settings from Firestore: ", error); showToast("Gagal memuat pengaturan dari Cloud."); }
-        }
-        
-        function setDate() { document.getElementById('current-date').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); }
-        function showToast(message) { const toast = document.getElementById('toast-notification'); toast.textContent = message; toast.classList.add('show'); setTimeout(() => { toast.classList.remove('show'); }, 3000); }
+                    return null;
+                } catch (error) {
+                    console.error(`Gagal mengambil harga untuk ${ticker}:`, error);
+                    return null;
+                }
+            }
 
-        async function initializeAppAndAuth() {
-            try {
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) { userId = user.uid; console.log("Firebase user signed in with UID:", userId); await loadSettings(); renderUI(); } else { await signInAnonymously(auth); }
+            async function triggerDailyRecommendation() {
+                const statusEl = document.getElementById('ai-recommendation-status');
+                const lastRecDate = localStorage.getItem('lastRecommendationDate');
+                const today = new Date().toISOString().split('T')[0];
+                const now = new Date();
+
+                if (lastRecDate === today) {
+                    statusEl.textContent = "Rekomendasi AI untuk hari ini telah diterima.";
+                    return;
+                }
+
+                if (now.getHours() >= 8) {
+                    statusEl.textContent = "Meminta rekomendasi AI untuk hari ini...";
+                    await getAIRecommendations();
+                } else {
+                     statusEl.textContent = "Rekomendasi AI otomatis akan berjalan setelah pukul 08:00 pagi.";
+                }
+            }
+
+            async function getAIRecommendations() {
+                if (!supabaseClient) {
+                    showToast("Supabase belum dikonfigurasi. Rekomendasi tidak dapat disimpan.");
+                    return;
+                }
+                try {
+                    const issiTickers = stockData.filter(s => s.isSyariah && !s.inSpecialMonitoring).map(s => s.ticker).join(', ');
+                    const prompt = `Anda adalah seorang analis saham ahli. Dari daftar saham syariah (ISSI) berikut: ${issiTickers}, analisislah berdasarkan berita keuangan, laporan perusahaan, analisis pasar terkini, dan indikator teknikal (RSI, MFI, MACD, Volume, Stochastic, Moving Average). Berikan 4 saham yang paling direkomendasikan hari ini. Format jawabanmu HANYA sebagai daftar kode saham 4 huruf yang dipisahkan koma. PENTING: Saham pertama dalam daftar adalah yang paling Anda rekomendasikan. Contoh: TLKM,ADRO,ICBP,UNVR`;
+                    
+                    const recommendationText = await callGeminiAPI(prompt);
+                    const tickers = recommendationText.split(',').map(t => t.trim().toUpperCase()).filter(t => t.length === 4);
+                    
+                    if (tickers.length === 0) {
+                        showToast("AI tidak memberikan rekomendasi saat ini. Coba lagi nanti.");
+                        return;
+                    }
+
+                    showToast(`AI merekomendasikan: ${tickers.join(', ')}. Menyimpan ke Supabase...`);
+
+                    const recommendationsToSave = [];
+                    for (let i = 0; i < tickers.length; i++) {
+                        const ticker = tickers[i];
+                        const stockInfo = await fetchStockPrice(ticker);
+                        if(stockInfo) {
+                           recommendationsToSave.push({
+                                ticker: stockInfo.ticker,
+                                name: stockInfo.name,
+                                initial_price: stockInfo.price,
+                                is_top_pick: i === 0 // Tandai yang pertama sebagai top pick
+                            });
+                        }
+                    }
+
+                    const { error } = await supabaseClient.from('ai_recommendations').insert(recommendationsToSave);
+                    if (error) throw error;
+                    
+                    localStorage.setItem('lastRecommendationDate', new Date().toISOString().split('T')[0]);
+                    document.getElementById('ai-recommendation-status').textContent = "Rekomendasi AI untuk hari ini berhasil disimpan!";
+                    await renderPerformance();
+
+                } catch (error) {
+                    showToast(`Gagal mendapatkan rekomendasi AI: ${error.message}`);
+                    document.getElementById('ai-recommendation-status').textContent = `Gagal mendapatkan rekomendasi AI. Coba lagi nanti.`;
+                }
+            }
+
+            async function handleManualAnalysis() {
+                const input = document.getElementById('manual-stock-input').value;
+                const resultContainer = document.getElementById('manual-analysis-result');
+                if (!input.trim()) { showToast("Silakan masukkan minimal satu kode saham."); return; }
+                if (!GEMINI_API_KEY) { showToast('Kunci API Gemini belum dimasukkan ke dalam kode.'); return; }
+                const tickers = input.split(',').map(t => t.trim().toUpperCase()).filter(t => t);
+                resultContainer.innerHTML = `<div class="flex items-center justify-center py-8"><div class="loader"></div> <p class="ml-4 text-gray-500">AI sedang menganalisis...</p></div>`;
+                try {
+                    const prompt = `Anda adalah seorang analis teknikal dan fundamental ahli. Saya ingin Anda menganalisis dan membandingkan saham-saham berikut: ${tickers.join(', ')}. Untuk setiap saham, berikan analisis berdasarkan data terkini (asumsikan Anda memiliki akses ke data tersebut) yang mencakup: 1. Indikator Teknikal (RSI, Stochastic, MACD, MFI, Volume, Moving Average). 2. Aspek Fundamental (berita keuangan, ringkasan laporan perusahaan, analisis pasar umum). Setelah menganalisis setiap saham, berikan dua bagian kesimpulan. Pertama, bagian 'Urutan Rekomendasi' yang berisi daftar urutan saham dari yang paling direkomendasikan (peringkat 1) hingga yang kurang direkomendasikan. Kedua, bagian 'Rekomendasi Utama' yang menjelaskan secara ringkas saham mana yang menjadi pilihan teratas dan mengapa. Format jawaban Anda dengan heading tebal untuk setiap saham dan juga untuk 'Urutan Rekomendasi' dan 'Rekomendasi Utama'.`;
+                    const analysisText = await callGeminiAPI(prompt);
+                    resultContainer.innerHTML = analysisText
+                        .replace(/\*\*(.*?)\*\*/g, '<h4>$1</h4>')
+                        .replace(/\n/g, '<br>');
+                } catch (error) {
+                     resultContainer.innerHTML = `<p class="text-red-500 text-center">Terjadi kesalahan: ${error.message}</p>`;
+                     console.error("Gemini API Error:", error);
+                }
+            }
+
+            async function callGeminiAPI(prompt) {
+                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`;
+                 const payload = { contents: [{ parts: [{ text: prompt }] }] };
+                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                 if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error.message || 'Gagal berkomunikasi dengan API.'); }
+                 const result = await response.json();
+                 return result.candidates[0].content.parts[0].text;
+            }
+            
+            async function renderPerformance(period = 'daily') {
+                const tableBody = document.getElementById('performance-table-body');
+                if (!supabaseClient) {
+                    tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-red-500">Supabase belum dikonfigurasi.</td></tr>`;
+                    return;
+                }
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-gray-500">Memuat data performa dari Supabase...</td></tr>`;
+
+                const now = new Date();
+                const periodMap = { daily: 1, weekly: 7, monthly: 30 };
+                const daysToFilter = periodMap[period] || 1;
+                const cutoffDate = new Date();
+                cutoffDate.setDate(now.getDate() - daysToFilter);
+                
+                const { data: recs, error } = await supabaseClient
+                    .from('ai_recommendations')
+                    .select('*')
+                    .gte('created_at', cutoffDate.toISOString());
+
+                if (error) {
+                    console.error("Error fetching performance data:", error);
+                    tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-red-500">Gagal memuat data performa. Pastikan tabel 'ai_recommendations' sudah dibuat di Supabase.</td></tr>`;
+                    return;
+                }
+                
+                if (recs.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-gray-500">Tidak ada riwayat rekomendasi pada periode ini.</td></tr>`;
+                    return;
+                }
+                
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-gray-500">Memuat harga terkini...</td></tr>`;
+
+                const performanceData = [];
+                for(const stock of recs) {
+                    const currentData = await fetchStockPrice(stock.ticker);
+                    const initialPrice = stock.initial_price;
+                    const recommendationDate = new Date(stock.created_at);
+                    const currentPrice = currentData ? currentData.price : initialPrice;
+                    const gain = ((currentPrice - initialPrice) / initialPrice) * 100;
+                    performanceData.push({ ...stock, date: recommendationDate, initialPrice, currentPrice, gain: parseFloat(gain.toFixed(2)) });
+                }
+
+                performanceData.sort((a, b) => b.date - a.date);
+                tableBody.innerHTML = ''; 
+
+                performanceData.forEach(data => {
+                    const row = document.createElement('tr');
+                    row.className = `bg-white border-b hover:bg-gray-50 ${data.is_top_pick ? 'top-pick-highlight' : ''}`;
+                    const gainClass = data.gain > 0 ? 'positive-gain' : (data.gain < 0 ? 'negative-gain' : 'neutral-gain');
+                    const gainIcon = data.gain > 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                    row.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${data.ticker} ${data.is_top_pick ? '<i class="fas fa-star text-yellow-400 ml-1"></i>' : ''}</td><td class="px-6 py-4">${data.date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</td><td class="px-6 py-4 text-right">Rp ${Math.round(data.initialPrice).toLocaleString('id-ID')}</td><td class="px-6 py-4 text-right">Rp ${Math.round(data.currentPrice).toLocaleString('id-ID')}</td><td class="px-6 py-4 text-right"><span class="font-semibold ${gainClass}">${data.gain > 0 ? '+' : ''}${data.gain.toFixed(2)}% ${data.gain !== 0 ? `<i class="fas ${gainIcon} ml-1 text-xs"></i>` : ''}</span></td>`;
+                    tableBody.appendChild(row);
                 });
-            } catch (error) { console.error("Firebase initialization failed:", error); showToast("Gagal terhubung ke server. Pengaturan tidak akan disimpan."); renderUI(); }
-        }
+            }
 
-        function renderUI() { renderRecommendations(); renderPerformance('daily'); }
+            // --- Manual Tracking Functions ---
+            async function addStockToManualTracking() {
+                const input = document.getElementById('manual-track-input');
+                const button = document.getElementById('add-manual-track-btn');
+                const ticker = input.value.trim().toUpperCase();
+                if (!ticker) { showToast("Silakan masukkan kode saham."); return; }
+                button.disabled = true;
+                button.innerHTML = `<div class="loader !w-5 !h-5 !border-2 mx-auto"></div>`;
+                const stockData = await fetchStockPrice(ticker);
+                if (!stockData) { showToast(`Saham dengan kode ${ticker} tidak ditemukan atau API gagal.`); button.disabled = false; button.innerHTML = `<i class="fas fa-plus mr-2"></i> Tambahkan`; return; }
+                
+                const { error } = await supabaseClient.from('manual_tracking').insert([{ ticker: stockData.ticker, initial_price: stockData.price }]);
+                if (error) { showToast(`Gagal menambahkan ${ticker}: ${error.message}`); }
+                else { showToast(`${ticker} berhasil ditambahkan ke daftar lacak.`); input.value = ''; }
+                
+                await renderManualPerformance();
+                button.disabled = false;
+                button.innerHTML = `<i class="fas fa-plus mr-2"></i> Tambahkan`;
+            }
 
-        function initApp() { // Renamed from init
-            setDate();
-            initializeAppAndAuth();
+            async function removeStockFromManualTracking(id) {
+                 const { error } = await supabaseClient.from('manual_tracking').delete().match({ id: id });
+                 if (error) { showToast(`Gagal menghapus: ${error.message}`); }
+                 else { showToast(`Saham berhasil dihapus.`); }
+                 await renderManualPerformance();
+            }
+
+            async function renderManualPerformance() {
+                const tableBody = document.getElementById('manual-performance-table-body');
+                 if (!supabaseClient) {
+                    tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-8 text-red-500">Supabase belum dikonfigurasi.</td></tr>`;
+                    return;
+                }
+                tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-8 text-gray-500">Memuat data dari Supabase...</td></tr>`;
+
+                const { data: trackingList, error } = await supabaseClient.from('manual_tracking').select('*');
+                if (error) { tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-8 text-red-500">Gagal memuat data. Pastikan tabel 'manual_tracking' sudah dibuat.</td></tr>`; return; }
+                if (trackingList.length === 0) { tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-8 text-gray-500">Anda belum menambahkan saham apapun ke daftar lacak.</td></tr>`; return; }
+                
+                tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-8 text-gray-500">Memuat harga terkini...</td></tr>`;
+                
+                const performanceData = [];
+                for (const stock of trackingList) {
+                    const currentData = await fetchStockPrice(stock.ticker);
+                    const initialPrice = stock.initial_price;
+                    const addedDate = new Date(stock.created_at);
+                    const currentPrice = currentData ? currentData.price : initialPrice;
+                    const gain = ((currentPrice - initialPrice) / initialPrice) * 100;
+                    performanceData.push({ ...stock, date: addedDate, initialPrice, currentPrice, gain: parseFloat(gain.toFixed(2)) });
+                }
+                performanceData.sort((a, b) => b.date - a.date);
+                tableBody.innerHTML = ''; 
+                
+                performanceData.forEach(data => {
+                    const row = document.createElement('tr');
+                    row.className = 'bg-white border-b hover:bg-gray-50';
+                    const gainClass = data.gain > 0 ? 'positive-gain' : (data.gain < 0 ? 'negative-gain' : 'neutral-gain');
+                    const gainIcon = data.gain > 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                    row.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${data.ticker}</td><td class="px-6 py-4">${data.date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</td><td class="px-6 py-4 text-right">Rp ${Math.round(data.initialPrice).toLocaleString('id-ID')}</td><td class="px-6 py-4 text-right">Rp ${Math.round(data.currentPrice).toLocaleString('id-ID')}</td><td class="px-6 py-4 text-right"><span class="font-semibold ${gainClass}">${data.gain > 0 ? '+' : ''}${data.gain.toFixed(2)}% ${data.gain !== 0 ? `<i class="fas ${gainIcon} ml-1 text-xs"></i>` : ''}</span></td><td class="px-6 py-4 text-center"><button data-id="${data.id}" class="remove-manual-btn text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button></td>`;
+                    tableBody.appendChild(row);
+                });
+                document.querySelectorAll('.remove-manual-btn').forEach(button => { button.addEventListener('click', (e) => removeStockFromManualTracking(e.currentTarget.dataset.id)); });
+            }
             
-            document.querySelectorAll('.time-filter-btn').forEach(button => { button.addEventListener('click', function() { document.querySelectorAll('.time-filter-btn').forEach(btn => btn.classList.remove('active-filter', 'font-semibold')); this.classList.add('active-filter', 'font-semibold'); renderPerformance(this.getAttribute('data-period')); }); });
-            document.getElementById('tab-btn-dashboard').addEventListener('click', handleTabClick);
-            document.getElementById('tab-btn-settings').addEventListener('click', handleTabClick);
-            document.getElementById('tab-btn-manual').addEventListener('click', handleTabClick);
-            document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
-            document.getElementById('ai-modal-close').addEventListener('click', () => document.getElementById('ai-modal').classList.add('hidden'));
-            document.getElementById('manual-analyze-btn').addEventListener('click', handleManualAnalysis);
-        }
+            function handleTabClick(event) { 
+                const tabButtons = document.querySelectorAll('.tab-btn');
+                tabButtons.forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.classList.add('border-transparent', 'text-gray-500');
+                });
+                event.target.classList.add('active');
+                event.target.classList.remove('border-transparent', 'text-gray-500');
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+                const targetId = `tab-content-${event.target.id.split('-')[2]}`;
+                document.getElementById(targetId).classList.remove('hidden');
 
-        function setupPasswordProtection() {
-            const passwordOverlay = document.getElementById('password-overlay');
-            const passwordInput = document.getElementById('password-input');
-            const passwordSubmit = document.getElementById('password-submit');
-            const passwordError = document.getElementById('password-error');
-            const appContainer = document.getElementById('app');
-            const passwordBox = passwordOverlay.querySelector('div');
-
-            function verifyPassword() {
-                if (passwordInput.value === 'asap123') {
-                    passwordOverlay.classList.add('opacity-0');
-                    setTimeout(() => {
-                        passwordOverlay.style.display = 'none';
-                        appContainer.classList.remove('hidden');
-                        initApp(); // Initialize app after successful login
-                    }, 300);
-                } else {
-                    passwordError.classList.remove('hidden');
-                    passwordBox.classList.add('animate-shake');
-                    setTimeout(() => {
-                        passwordBox.classList.remove('animate-shake');
-                    }, 500);
+                if (targetId === 'tab-content-tracking') {
+                    renderManualPerformance();
+                }
+            }
+            
+            function setDate() { document.getElementById('current-date').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); }
+            function showToast(message) { const toast = document.getElementById('toast-notification'); toast.textContent = message; toast.classList.add('show'); setTimeout(() => { toast.classList.remove('show'); }, 3000); }
+            
+            function initApp() {
+                setDate();
+                renderPerformance();
+                triggerDailyRecommendation();
+                
+                // Event Listeners
+                document.querySelectorAll('.time-filter-btn').forEach(button => { 
+                    button.addEventListener('click', function() { 
+                        document.querySelectorAll('.time-filter-btn').forEach(btn => btn.classList.remove('active-filter', 'font-semibold')); 
+                        this.classList.add('active-filter', 'font-semibold'); 
+                        renderPerformance(this.dataset.period); 
+                    }); 
+                });
+                document.getElementById('tab-btn-dashboard').addEventListener('click', handleTabClick);
+                document.getElementById('tab-btn-manual').addEventListener('click', handleTabClick);
+                document.getElementById('tab-btn-tracking').addEventListener('click', handleTabClick);
+                document.getElementById('manual-analyze-btn').addEventListener('click', handleManualAnalysis);
+                document.getElementById('add-manual-track-btn').addEventListener('click', addStockToManualTracking);
+                
+                const getRecBtn = document.getElementById('get-ai-recommendation-btn');
+                if (getRecBtn) {
+                    getRecBtn.addEventListener('click', getAIRecommendations);
                 }
             }
 
-            passwordSubmit.addEventListener('click', verifyPassword);
-            passwordInput.addEventListener('keyup', (event) => {
-                passwordError.classList.add('hidden');
-                if (event.key === 'Enter') {
-                    verifyPassword();
-                }
-            });
-
-            passwordInput.focus();
-        }
-
-        setupPasswordProtection();
+            initApp();
+        });
     </script>
 </body>
 </html>
+
